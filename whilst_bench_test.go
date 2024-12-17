@@ -14,6 +14,18 @@ const (
 	benchmarkDurationExpected = "-24h30m28.02006002s"
 )
 
+func BenchmarkParseReference(b *testing.B) {
+	var last int
+
+	for range b.N {
+		for id := range []byte(benchmarkInput) {
+			last = id
+		}
+	}
+
+	require.NotZero(b, last)
+}
+
 func BenchmarkParse(b *testing.B) {
 	var (
 		whl Whilst

@@ -8,126 +8,152 @@ import (
 )
 
 // Time duration with days, months and years.
+//
+// Maximum value of days, months and years is 65535.
 type Whilst struct {
+	duration uint64
+
+	days   uint16
+	months uint16
+	years  uint16
+
 	negative bool
-
-	duration time.Duration
-
-	days   int64
-	months int64
-	years  int64
 }
 
-// Parses a string representation of a duration.
+// Parses a string representation of the duration.
+//
+// List of valid duration units:
+//   - y            - year
+//   - mo           - month
+//   - d            - day
+//   - h            - hour
+//   - m            - minute
+//   - s            - second
+//   - ms           - millisecond
+//   - µs | μs | us - microsecond
+//   - ns           - nanosecond
 func Parse(input string) (Whilst, error) {
-	parser := newParser(input)
-	return parser.parse()
-}
+	whl := Whilst{}
 
-// Returns a string representation of a duration.
-func (whl Whilst) String() string {
-	if whl.isZero() {
-		return "0s"
+	if err := parse(input, &whl); err != nil {
+		return Whilst{}, err
 	}
 
-	output := make([]byte, 0, len("-2562047h47m16.854775808s"))
+	return whl, nil
+}
+
+// Reports whether the duration is zero.
+func (whl Whilst) IsZero() bool {
+	return whl.years|whl.months|whl.days == 0 && whl.duration == 0
+}
+
+// Returns a string representation of the duration.
+func (whl Whilst) String() string {
+	if whl.IsZero() {
+		return specialZeroFormat
+	}
+
+	var output []byte
+
+	switch {
+	case whl.years|whl.months|whl.days == 0:
+		output = make([]byte, 0, len(formatMaximumStd))
+	default:
+		output = make([]byte, 0, len(formatMaximum))
+	}
 
 	if whl.negative {
-		output = append(output, consts.SymbolMinus)
+		output = append(output, charMinus)
 	}
 
 	if whl.years != 0 {
-		output = strconv.AppendInt(output, whl.years, consts.DecimalBase)
-		output = append(output, "y"...)
+		output = strconv.AppendUint(output, uint64(whl.years), consts.DecimalBase)
+		output = append(output, unitYear...)
 	}
 
 	if whl.months != 0 {
-		output = strconv.AppendInt(output, whl.months, consts.DecimalBase)
-		output = append(output, "mo"...)
+		output = strconv.AppendUint(output, uint64(whl.months), consts.DecimalBase)
+		output = append(output, unitMonth...)
 	}
 
 	if whl.days != 0 {
-		output = strconv.AppendInt(output, whl.days, consts.DecimalBase)
-		output = append(output, "d"...)
+		output = strconv.AppendUint(output, uint64(whl.days), consts.DecimalBase)
+		output = append(output, unitDay...)
 	}
 
-	output = whl.formHMS(output)
+	output = whl.appendHMS(output)
 
 	return string(output)
 }
 
-func (whl Whilst) isZero() bool {
-	return whl.years|whl.months|whl.days|int64(whl.duration) == 0
-}
-
-func (whl Whilst) formHMS(output []byte) []byte {
+func (whl Whilst) appendHMS(output []byte) []byte {
 	duration := whl.duration
 	upper := false
 
-	hours := duration / time.Hour
-	duration %= time.Hour
+	hours := duration / consts.U64Hour
+	duration %= consts.U64Hour
 
-	minutes := duration / time.Minute
-	duration %= time.Minute
+	minutes := duration / consts.U64Minute
+	duration %= consts.U64Minute
 
-	seconds := duration / time.Second
-	duration %= time.Second
+	seconds := duration / consts.U64Second
+	duration %= consts.U64Second
 
-	if hours != 0 || upper {
+	if hours != 0 {
 		upper = true
 
-		output = strconv.AppendInt(output, int64(hours), consts.DecimalBase)
-		output = append(output, "h"...)
+		output = strconv.AppendUint(output, hours, consts.DecimalBase)
+		output = append(output, unitHour...)
 	}
 
 	if minutes != 0 || upper {
 		upper = true
 
-		output = strconv.AppendInt(output, int64(minutes), consts.DecimalBase)
-		output = append(output, "m"...)
+		output = strconv.AppendUint(output, minutes, consts.DecimalBase)
+		output = append(output, unitMinute...)
 	}
 
 	if seconds != 0 || upper {
-		output = strconv.AppendInt(output, int64(seconds), consts.DecimalBase)
-		output = formFractional(output, duration)
-		output = append(output, "s"...)
+		output = strconv.AppendUint(output, seconds, consts.DecimalBase)
+		output = appendFraction(output, duration)
+		output = append(output, unitSecond...)
 
 		return output
 	}
 
-	milliseconds := duration / time.Millisecond
-	duration %= time.Millisecond
-	millisecondsFractional := duration * time.Second / time.Millisecond
-
-	microseconds := duration / time.Microsecond
-	duration %= time.Microsecond
-	microsecondsFractional := duration * time.Second / time.Microsecond
+	milliseconds := duration / consts.U64Millisecond
+	duration %= consts.U64Millisecond
+	millisecondsFraction := duration * consts.U64Second / consts.U64Millisecond
 
 	if milliseconds != 0 {
-		output = strconv.AppendInt(output, int64(milliseconds), consts.DecimalBase)
-		output = formFractional(output, millisecondsFractional)
-		output = append(output, "ms"...)
+		output = strconv.AppendUint(output, milliseconds, consts.DecimalBase)
+		output = appendFraction(output, millisecondsFraction)
+		output = append(output, unitMillisecond...)
 
 		return output
 	}
 
+	microseconds := duration / consts.U64Microsecond
+	duration %= consts.U64Microsecond
+	microsecondsFraction := duration * consts.U64Second / consts.U64Microsecond
+
 	if microseconds != 0 {
-		output = strconv.AppendInt(output, int64(microseconds), consts.DecimalBase)
-		output = formFractional(output, microsecondsFractional)
-		output = append(output, "µs"...)
+		output = strconv.AppendUint(output, microseconds, consts.DecimalBase)
+		output = appendFraction(output, microsecondsFraction)
+		output = append(output, unitMicrosecond...)
 
 		return output
 	}
 
 	if duration != 0 {
-		output = strconv.AppendInt(output, int64(duration), consts.DecimalBase)
-		output = append(output, "ns"...)
+		output = strconv.AppendUint(output, duration, consts.DecimalBase)
+		output = append(output, unitNanosecond...)
 	}
 
 	return output
 }
 
-// Returns a time.Duration representation of a duration.
+// Returns a time.Duration representation of the duration.
 //
 // Time from is necessary because shift by days, months and years is not deterministic
 // and depends on the time relative to which it occurs.
@@ -135,11 +161,19 @@ func (whl Whilst) Duration(from time.Time) time.Duration {
 	return whl.When(from).Sub(from)
 }
 
-// Returns a time shifted by a duration.
+// Returns a time shifted by the duration.
 func (whl Whilst) When(from time.Time) time.Time {
 	if whl.negative {
-		return from.AddDate(int(-whl.years), int(-whl.months), int(-whl.days)).Add(-whl.duration)
+		//nolint:gosec // Value of duration is controlled when parsing and setting
+		// Value uint64(-MinInt64) when converted and inverted will
+		// take the value int64(MinInt64)
+		duration := -time.Duration(whl.duration)
+
+		return from.AddDate(-int(whl.years), -int(whl.months), -int(whl.days)).Add(duration)
 	}
 
-	return from.AddDate(int(whl.years), int(whl.months), int(whl.days)).Add(whl.duration)
+	//nolint:gosec // Value of duration is controlled when parsing and setting
+	duration := time.Duration(whl.duration)
+
+	return from.AddDate(int(whl.years), int(whl.months), int(whl.days)).Add(duration)
 }

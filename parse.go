@@ -3,11 +3,13 @@ package whilst
 import (
 	"time"
 
-	"github.com/akramarenkov/whilst/internal/arith"
+	"github.com/akramarenkov/safe"
+	"github.com/akramarenkov/whilst/internal/ascii"
 	"github.com/akramarenkov/whilst/internal/consts"
-	"github.com/akramarenkov/whilst/internal/is"
+	"github.com/akramarenkov/whilst/internal/credible"
 )
 
+// Parsing context.
 type parser struct {
 	input string
 
@@ -16,64 +18,65 @@ type parser struct {
 
 	idUnit int
 
-	integer    int64
-	fractional int64
-	scale      float64
+	integer  uint64
+	fraction int64
+	scale    float64
 
-	whl Whilst
+	whl *Whilst
 }
 
-func newParser(input string) parser {
-	prs := parser{
-		input:  input,
-		idUnit: -1,
-		scale:  1,
+// Parses the input string.
+//
+// It is assumed that the input string corresponds to the regular expression
+// ^\s*[-+]?\s*([0-9]*(\.[0-9]*)?[a-z]+\s*)+$.
+func parse(input string, whl *Whilst) error {
+	prs := &parser{
+		input: input,
+		whl:   whl,
 	}
 
-	return prs
+	prs.reset()
+
+	return prs.parse()
 }
 
-// Corresponds to the regular expression ^\s*[-+]?\s*([0-9]*(\.[0-9]*)?[a-z]+\s*)+$.
-func (prs *parser) parse() (Whilst, error) {
+func (prs *parser) parse() error {
 	if err := prs.begin(); err != nil {
-		return Whilst{}, err
+		return err
 	}
 
-	if prs.input == "0" {
-		if prs.whl.isZero() {
-			prs.whl.negative = false
-		}
-
-		return prs.whl, nil
+	if prs.input == specialZeroParse {
+		prs.whl.negative = false
+		return nil
 	}
 
-	for id, symbol := range []byte(prs.input) {
-		if is.Digit(symbol) {
+	for id, char := range []byte(prs.input) {
+		if ascii.IsDigit(char) {
 			if err := prs.onDigit(id); err != nil {
-				return Whilst{}, err
+				return err
 			}
 
 			continue
 		}
 
-		if symbol == consts.SymbolDot {
+		if char == charDot {
 			if err := prs.onDot(id); err != nil {
-				return Whilst{}, err
+				return err
 			}
 
 			continue
 		}
 
-		if is.Space(symbol) {
+		if ascii.IsSpace(char) {
 			if err := prs.onSpace(id); err != nil {
-				return Whilst{}, err
+				return err
 			}
 
 			continue
 		}
 
 		if !prs.foundNum {
-			return Whilst{}, ErrNumberUnspecified
+			return ErrNumberUnspecified
 		}
 
 		if prs.idUnit == -1 {
@@ -82,53 +85,53 @@ func (prs *parser) parse() (Whilst, error) {
 	}
 
 	if err := prs.end(); err != nil {
-		return Whilst{}, err
+		return err
 	}
 
-	if prs.whl.isZero() {
+	if prs.whl.IsZero() {
 		prs.whl.negative = false
-	}
-
-	return prs.whl, nil
-}
-
-func (prs *parser) begin() error {
-	foundSign := false
-
-	for id, symbol := range []byte(prs.input) {
-		if symbol == consts.SymbolMinus || symbol == consts.SymbolPlus {
-			if foundSign {
-				return ErrSymbolSignAgain
-			}
-
-			foundSign = true
-
-			prs.whl.negative = symbol == consts.SymbolMinus
-
-			continue
-		}
-
-		if is.Digit(symbol) || symbol == consts.SymbolDot {
-			prs.input = prs.input[id:]
-			return nil
-		}
-
-		if is.Space(symbol) {
-			continue
-		}
-
-		return ErrUnexpectedSymbol
 	}
 
 	return nil
 }
 
+func (prs *parser) begin() error {
+	foundSign := false
+
+	for id, char := range []byte(prs.input) {
+		if char == charMinus || char == charPlus {
+			if foundSign {
+				return ErrCharSignAgain
+			}
+
+			foundSign = true
+
+			prs.whl.negative = char == charMinus
+
+			continue
+		}
+
+		if ascii.IsDigit(char) || char == charDot {
+			prs.input = prs.input[id:]
+			return nil
+		}
+
+		if ascii.IsSpace(char) {
+			continue
+		}
+
+		return ErrUnexpectedChar
+	}
+
+	return ErrInputEmpty
+}
+
 func (prs *parser) onDigit(id int) error {
-	symbol := prs.input[id]
+	char := prs.input[id]
 
 	if !prs.foundNum {
 		prs.foundNum = true
-		return prs.increaseInteger(symbol)
+		return prs.incInteger(char)
 	}
 
 	if prs.idUnit != -1 {
@@ -141,15 +144,15 @@ func (prs *parser) onDigit(id int) error {
 
 		prs.reset()
 
-		return prs.increaseInteger(symbol)
+		return prs.incInteger(char)
 	}
 
 	if prs.foundDot {
-		prs.increaseFractional(symbol)
+		prs.incFraction(char)
 		return nil
 	}
 
-	return prs.increaseInteger(symbol)
+	return prs.incInteger(char)
 }
 
 func (prs *parser) onDot(id int) error {
@@ -174,7 +177,7 @@ func (prs *parser) onDot(id int) error {
 	}
 
 	if prs.foundDot {
-		return ErrSymbolDotAgain
+		return ErrCharDotAgain
 	}
 
 	prs.foundDot = true
@@ -215,15 +218,15 @@ func (prs *parser) end() error {
 	return prs.addValue(len(prs.input))
 }
 
-func (prs *parser) increaseInteger(symbol byte) error {
-	digit := int64(symbol - '0')
+func (prs *parser) incInteger(char byte) error {
+	digit := ascii.ByteToDigit[uint64](char)
 
-	shifted, err := arith.MulBy10(prs.integer)
+	shifted, err := credible.MulBy10U(prs.integer)
 	if err != nil {
 		return err
 	}
 
-	increased, err := arith.Add(shifted, digit)
+	increased, err := safe.AddU(shifted, digit)
 	if err != nil {
 		return err
 	}
@@ -233,20 +236,20 @@ func (prs *parser) increaseInteger(symbol byte) error {
 	return nil
 }
 
-func (prs *parser) increaseFractional(symbol byte) {
-	digit := int64(symbol - '0')
+func (prs *parser) incFraction(char byte) {
+	digit := ascii.ByteToDigit[int64](char)
 
-	shifted, err := arith.MulBy10(prs.fractional)
+	shifted, err := credible.MulBy10(prs.fraction)
 	if err != nil {
 		return
 	}
 
-	increased, err := arith.Add(shifted, digit)
+	increased, err := credible.Add(shifted, digit)
 	if err != nil {
 		return
 	}
 
-	prs.fractional = increased
+	prs.fraction = increased
 	prs.scale *= consts.DecimalBase
 }
 
@@ -254,22 +257,22 @@ func (prs *parser) reset() {
 	prs.idUnit = -1
 
 	prs.integer = 0
-	prs.fractional = 0
+	prs.fraction = 0
 	prs.scale = 1
 }
 
 func (prs *parser) addValue(id int) error {
-	whole := time.Duration(prs.integer)
+	whole := prs.integer
 	dimension := time.Nanosecond
 	unit := prs.input[prs.idUnit:id]
 
 	switch unit {
-	case "y":
-		if prs.fractional != 0 {
+	case unitYear:
+		if prs.fraction != 0 {
 			return ErrOnlyInteger
 		}
 
-		increased, err := arith.Add(prs.whl.years, prs.integer)
+		increased, err := credible.AddU64ToU16(prs.whl.years, prs.integer)
 		if err != nil {
 			return err
 		}
@@ -277,12 +280,12 @@ func (prs *parser) addValue(id int) error {
 		prs.whl.years = increased
 
 		return nil
-	case "mo":
-		if prs.fractional != 0 {
+	case unitMonth:
+		if prs.fraction != 0 {
 			return ErrOnlyInteger
 		}
 
-		increased, err := arith.Add(prs.whl.months, prs.integer)
+		increased, err := credible.AddU64ToU16(prs.whl.months, prs.integer)
 		if err != nil {
 			return err
 		}
@@ -290,12 +293,12 @@ func (prs *parser) addValue(id int) error {
 		prs.whl.months = increased
 
 		return nil
-	case "d":
-		if prs.fractional != 0 {
+	case unitDay:
+		if prs.fraction != 0 {
 			return ErrOnlyInteger
 		}
 
-		increased, err := arith.Add(prs.whl.days, prs.integer)
+		increased, err := credible.AddU64ToU16(prs.whl.days, prs.integer)
 		if err != nil {
 			return err
 		}
@@ -303,69 +306,69 @@ func (prs *parser) addValue(id int) error {
 		prs.whl.days = increased
 
 		return nil
-	case "h":
+	case unitHour:
 		dimension = time.Hour
 
-		multiplied, err := arith.MulByHour(whole)
+		multiplied, err := credible.MulByHour(whole)
 		if err != nil {
 			return err
 		}
 
 		whole = multiplied
-	case "m":
+	case unitMinute:
 		dimension = time.Minute
 
-		multiplied, err := arith.MulByMinute(whole)
+		multiplied, err := credible.MulByMinute(whole)
 		if err != nil {
 			return err
 		}
 
 		whole = multiplied
-	case "s":
+	case unitSecond:
 		dimension = time.Second
 
-		multiplied, err := arith.MulBySecond(whole)
+		multiplied, err := credible.MulBySecond(whole)
 		if err != nil {
 			return err
 		}
 
 		whole = multiplied
-	case "ms":
+	case unitMillisecond:
 		dimension = time.Millisecond
 
-		multiplied, err := arith.MulByMillisecond(whole)
+		multiplied, err := credible.MulByMillisecond(whole)
 		if err != nil {
 			return err
 		}
 
 		whole = multiplied
-	case "µs", "μs", "us":
+	case unitMicrosecond, unitMicrosecondA1, unitMicrosecondA2:
 		dimension = time.Microsecond
 
-		multiplied, err := arith.MulByMicrosecond(whole)
+		multiplied, err := credible.MulByMicrosecond(whole)
 		if err != nil {
 			return err
 		}
 
 		whole = multiplied
-	case "ns":
+	case unitNanosecond:
 	default:
 		return ErrUnexpectedUnit
 	}
 
-	duration, err := arith.AddDuration(prs.whl.duration, whole)
+	duration, err := credible.AddDuration(prs.whl.duration, whole, prs.whl.negative)
 	if err != nil {
 		return err
 	}
 
-	if prs.fractional == 0 {
+	if prs.fraction == 0 {
 		prs.whl.duration = duration
 		return nil
 	}
 
-	converted := float64(prs.fractional) * (float64(dimension) / float64(prs.scale))
+	converted := float64(prs.fraction) * (float64(dimension) / float64(prs.scale))
 
-	duration, err = arith.AddDuration(duration, time.Duration(converted))
+	duration, err = credible.AddDuration(duration, uint64(converted), prs.whl.negative)
 	if err != nil {
 		return err
 	}

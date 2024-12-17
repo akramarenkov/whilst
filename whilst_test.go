@@ -7,8 +7,157 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestWhilst(t *testing.T) {
+	whl, err := Parse("0")
+	require.NoError(t, err)
+	require.Equal(t, "0s", whl.String())
+
+	whl, err = Parse("-0")
+	require.NoError(t, err)
+	require.Equal(t, "0s", whl.String())
+
+	whl, err = Parse("-0m")
+	require.NoError(t, err)
+	require.Equal(t, "0s", whl.String())
+
+	whl, err = Parse("-2y3mo10d23.5h59.5m58s")
+	require.NoError(t, err)
+	require.Equal(t, "-2y3mo10d24h30m28s", whl.String())
+
+	whl, err = Parse("-.5h.5m58s")
+	require.NoError(t, err)
+	require.Equal(t, "-31m28s", whl.String())
+
+	whl, err = Parse("-2y  3mo10d23.5h59.5m58s")
+	require.NoError(t, err)
+	require.Equal(t, "-2y3mo10d24h30m28s", whl.String())
+
+	whl, err = Parse("-2y3mo10d23.5h59.5m58s  ")
+	require.NoError(t, err)
+	require.Equal(t, "-2y3mo10d24h30m28s", whl.String())
+
+	whl, err = Parse("10ms")
+	require.NoError(t, err)
+	require.Equal(t, "10ms", whl.String())
+
+	whl, err = Parse("30us")
+	require.NoError(t, err)
+	require.Equal(t, "30µs", whl.String())
+
+	whl, err = Parse("10ns")
+	require.NoError(t, err)
+	require.Equal(t, "10ns", whl.String())
+
+	whl, err = Parse("65535d")
+	require.NoError(t, err)
+	require.Equal(t, "65535d", whl.String())
+
+	whl, err = Parse("65535mo")
+	require.NoError(t, err)
+	require.Equal(t, "65535mo", whl.String())
+
+	whl, err = Parse("65535y")
+	require.NoError(t, err)
+	require.Equal(t, "65535y", whl.String())
+
+	whl, err = Parse("9223372036854775807ns")
+	require.NoError(t, err)
+	require.Equal(t, "2562047h47m16.854775807s", whl.String())
+
+	whl, err = Parse("9223372036854775806ns1ns")
+	require.NoError(t, err)
+	require.Equal(t, "2562047h47m16.854775807s", whl.String())
+
+	whl, err = Parse("-9223372036854775808ns")
+	require.NoError(t, err)
+	require.Equal(t, "-2562047h47m16.854775808s", whl.String())
+
+	whl, err = Parse("-9223372036854775807ns1ns")
+	require.NoError(t, err)
+	require.Equal(t, "-2562047h47m16.854775808s", whl.String())
+}
+
+func TestParseError(t *testing.T) {
+	inputs := []string{
+		" - - 0s",
+		" - + 0s",
+		"-৩s",
+		"-0.0.s",
+		"-1",
+		"-1 ",
+		"1s s",
+		"2.5y",
+		"2.5mo",
+		"2.5d",
+		"2.5c",
+		"18446744073709551616s",
+		"184467440737095516100s",
+		"18446744073709551615s0.1s",
+		"18446744073709551615s.1s",
+		"18446744073709551615s 1s",
+		"18446744073709551615h",
+		"18446744073709551615m",
+		"18446744073709551615s",
+		"18446744073709551615ms",
+		"18446744073709551615µs",
+		"9223372036854775807ns1ns",
+		"-9223372036854775808ns1ns",
+		"9223372036854775807ns0.1s",
+		"-9223372036854775808ns0.1s",
+		"65536d",
+		"65535d1d",
+		"65536mo",
+		"65535mo1mo",
+		"65536y",
+		"65535y1y",
+	}
+
+	for _, input := range inputs {
+		whl, err := Parse(input)
+		require.Error(t, err, "input: %v", input)
+		require.Equal(t, Whilst{}, whl, "input: %v", input)
+	}
+}
+
+func TestCompatibility(t *testing.T) {
+	inputs := []string{
+		"-9223372036854775808ns",
+		".10000000010000000000m",
+		"0.20000000000000000001s",
+		"0.9223372036854775808s",
+	}
+
+	for _, input := range inputs {
+		whl, err := Parse(input)
+		require.NoError(t, err, "input: %v", input)
+
+		expected, err := time.ParseDuration(input)
+		require.NoError(t, err, "input: %v", input)
+
+		require.Equal(t, expected, whl.Duration(time.Time{}), "input: %v", input)
+		require.Equal(t, expected.String(), whl.String(), "input: %v", input)
+	}
+}
+
+func TestCompatibilityError(t *testing.T) {
+	inputs := []string{
+		"",
+		"   ",
+		"9223372036854775808ns",
+		"-9223372036854775809ns",
+	}
+
+	for _, input := range inputs {
+		_, err := Parse(input)
+		require.Error(t, err, "input: %v", input)
+
+		_, err = time.ParseDuration(input)
+		require.Error(t, err, "input: %v", input)
+	}
+}
+
 func FuzzPanic(f *testing.F) {
-	f.Add("-2y3mo10d23h59m58.01003001s")
+	f.Add(" - 2y 3mo 10d 23.5h 59.5m 58.01003001s 10ms 30µs 10ns")
 
 	f.Fuzz(
 		func(_ *testing.T, input string) {
@@ -23,7 +172,7 @@ func FuzzPanic(f *testing.F) {
 }
 
 func FuzzDegradation(f *testing.F) {
-	f.Add("-2y3mo10d23h59m58.01003001s")
+	f.Add(" - 2y 3mo 10d 23.5h 59.5m 58.01003001s 10ms 30µs 10ns")
 
 	f.Fuzz(
 		func(t *testing.T, input string) {
@@ -32,47 +181,50 @@ func FuzzDegradation(f *testing.F) {
 				return
 			}
 
-			string1 := parsed1.String()
+			formatted1 := parsed1.String()
 
-			parsed2, err := Parse(string1)
+			parsed2, err := Parse(formatted1)
 			require.NoError(t, err)
 			require.Equal(t, parsed1, parsed2)
 
-			string2 := parsed2.String()
-			require.Equal(t, string1, string2)
+			formatted2 := parsed2.String()
+			require.Equal(t, formatted1, formatted2)
 		},
 	)
 }
 
 func FuzzCompatibility(f *testing.F) {
-	f.Add("-23h59m58.01003001s")
+	f.Add("-23.5h59.5m58.01003001s10ms30µs10ns")
+	f.Add("9223372036854775807ns")
+	f.Add("-9223372036854775808ns")
 
 	f.Fuzz(
 		func(t *testing.T, input string) {
-			duration, err := time.ParseDuration(input)
+			expected, err := time.ParseDuration(input)
 			if err != nil {
 				return
 			}
 
 			whl, err := Parse(input)
 			require.NoError(t, err)
-			require.Equal(t, duration, whl.Duration(time.Time{}))
-			require.Equal(t, duration.String(), whl.String())
+			require.Equal(t, expected, whl.Duration(time.Time{}))
+			require.Equal(t, expected.String(), whl.String())
 		},
 	)
 }
 
 func FuzzError(f *testing.F) {
-	f.Add("-23h59m58.01003001s")
+	f.Add("-23.5h59.5m58.01003001s10ms30µs10ns")
+	f.Add("9223372036854775807ns")
+	f.Add("-9223372036854775808ns")
 
 	f.Fuzz(
 		func(t *testing.T, input string) {
-			_, err := Parse(input)
-			if err == nil {
+			if _, err := Parse(input); err == nil {
 				return
 			}
 
-			_, err = time.ParseDuration(input)
+			_, err := time.ParseDuration(input)
 			require.Error(t, err)
 		},
 	)
