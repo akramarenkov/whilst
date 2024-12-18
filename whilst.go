@@ -20,7 +20,7 @@ type Whilst struct {
 
 // Parses a string representation of the duration.
 //
-// A duration string consists of several numbers supplemented with a unit of
+// A duration string consists of several decimal numbers supplemented with a unit of
 // measurement. There may be spaces between a numbers supplemented with a unit,
 // but there must not be spaces between a number and a unit. One of a signs - or + can
 // be specified at a beginning of a string.
