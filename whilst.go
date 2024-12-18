@@ -8,8 +8,6 @@ import (
 )
 
 // Time duration with days, months and years.
-//
-// Maximum value of days, months and years is 65535.
 type Whilst struct {
 	duration uint64
 
@@ -22,7 +20,18 @@ type Whilst struct {
 
 // Parses a string representation of the duration.
 //
-// List of valid duration units:
+// A duration string consists of several numbers supplemented with a unit of
+// measurement. There may be spaces between a numbers supplemented with a unit,
+// but there must not be spaces between a number and a unit. One of a signs - or + can
+// be specified at a beginning of a string.
+//
+// A value of days, months and years can only be an integer and cannot be greater
+// than 65535 for each.
+//
+// Remaining values ​​must not be greater than 9223372036854775807 for positive duration
+// and 9223372036854775808 for negative duration and may have a fractional part.
+//
+// List of valid units:
 //   - y            - year
 //   - mo           - month
 //   - d            - day
@@ -32,6 +41,11 @@ type Whilst struct {
 //   - ms           - millisecond
 //   - µs | μs | us - microsecond
 //   - ns           - nanosecond
+//
+// Example of strings:
+//   - 2y3mo10d 24h30m28.02006002s
+//   - - 2y3mo10d24h30m28.02006002s
+//   - + 2y 3mo 10d 24h 30m 28.02006002s
 func Parse(input string) (Whilst, error) {
 	whl := Whilst{}
 
@@ -164,9 +178,10 @@ func (whl Whilst) Duration(from time.Time) time.Duration {
 // Returns a time shifted by the duration.
 func (whl Whilst) When(from time.Time) time.Time {
 	if whl.negative {
+		// Value uint64(-MinInt64) when converted to int64 will take the value MinInt64,
+		// the value int64(MinInt64) when inverted will also take the value MinInt64
+		//
 		//nolint:gosec // Value of duration is controlled when parsing and setting
-		// Value uint64(-MinInt64) when converted and inverted will
-		// take the value int64(MinInt64)
 		duration := -time.Duration(whl.duration)
 
 		return from.AddDate(-int(whl.years), -int(whl.months), -int(whl.days)).Add(duration)
