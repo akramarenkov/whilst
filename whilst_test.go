@@ -1,13 +1,14 @@
 package whilst
 
 import (
+	"math"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestWhilst(t *testing.T) {
+func TestParse(t *testing.T) {
 	whl, err := Parse("0")
 	require.NoError(t, err)
 	require.Equal(t, "0s", whl.String())
@@ -156,6 +157,24 @@ func TestCompatibilityError(t *testing.T) {
 	}
 }
 
+func TestManualSet(t *testing.T) {
+	whl := Whilst{Nano: -1e9}
+	require.Equal(t, "-1s", whl.String())
+	require.Equal(t, "0000-12-31 23:59:59 +0000 UTC", whl.When(time.Time{}).String())
+
+	whl = Whilst{Nano: 1e9, Negative: true}
+	require.Equal(t, "-1s", whl.String())
+	require.Equal(t, "0000-12-31 23:59:59 +0000 UTC", whl.When(time.Time{}).String())
+
+	whl = Whilst{Nano: -1e9, Negative: true}
+	require.Equal(t, "-1s", whl.String())
+	require.Equal(t, "0000-12-31 23:59:59 +0000 UTC", whl.When(time.Time{}).String())
+
+	whl = Whilst{Nano: 1e9}
+	require.Equal(t, "1s", whl.String())
+	require.Equal(t, "0001-01-01 00:00:01 +0000 UTC", whl.When(time.Time{}).String())
+}
+
 func FuzzPanic(f *testing.F) {
 	f.Add(" - 2y 3mo 10d 23.5h 59.5m 58.01003001s 10ms 30µs 10ns")
 
@@ -188,6 +207,61 @@ func FuzzDegradation(f *testing.F) {
 			require.Equal(t, parsed1, parsed2)
 
 			formatted2 := parsed2.String()
+			require.Equal(t, formatted1, formatted2)
+		},
+	)
+}
+
+func FuzzManualSet(f *testing.F) {
+	f.Add(
+		int64(math.MaxInt64),
+		uint16(math.MaxUint8),
+		uint16(math.MaxUint8),
+		uint16(math.MaxUint8),
+		true,
+	)
+
+	f.Add(
+		int64(math.MaxInt64),
+		uint16(math.MaxUint8),
+		uint16(math.MaxUint8),
+		uint16(math.MaxUint8),
+		false,
+	)
+
+	f.Add(
+		int64(math.MinInt64),
+		uint16(math.MaxUint8),
+		uint16(math.MaxUint8),
+		uint16(math.MaxUint8),
+		true,
+	)
+
+	f.Add(
+		int64(math.MinInt64),
+		uint16(math.MaxUint8),
+		uint16(math.MaxUint8),
+		uint16(math.MaxUint8),
+		false,
+	)
+
+	f.Fuzz(
+		func(t *testing.T, nano int64, days, months, years uint16, negative bool) {
+			origin := Whilst{
+				Nano:     time.Duration(nano),
+				Days:     days,
+				Months:   months,
+				Years:    years,
+				Negative: negative,
+			}
+
+			formatted1 := origin.String()
+
+			parsed, err := Parse(formatted1)
+			require.NoError(t, err)
+			require.Equal(t, origin.normalize(), parsed)
+
+			formatted2 := parsed.String()
 			require.Equal(t, formatted1, formatted2)
 		},
 	)

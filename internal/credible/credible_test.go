@@ -40,26 +40,38 @@ func TestAddU64ToU16(t *testing.T) {
 	require.Equal(t, uint16(0), sum)
 }
 
-func TestAddDuration(t *testing.T) {
-	sum, err := AddDuration(math.MaxInt64, 0, false)
+func TestAddU64ToS64(t *testing.T) {
+	sum, err := AddU64ToS64(math.MaxInt64, 0, false)
 	require.NoError(t, err)
-	require.Equal(t, uint64(math.MaxInt64), sum)
+	require.Equal(t, int64(math.MaxInt64), sum)
 
-	sum, err = AddDuration(math.MaxInt64, 1, true)
+	sum, err = AddU64ToS64(0, math.MaxInt64, false)
 	require.NoError(t, err)
-	require.Equal(t, uint64(math.MaxInt64+1), sum)
+	require.Equal(t, int64(math.MaxInt64), sum)
 
-	sum, err = AddDuration(math.MaxUint64, 1, false)
-	require.Error(t, err)
-	require.Equal(t, uint64(0), sum)
+	sum, err = AddU64ToS64(0, -math.MinInt64, true)
+	require.NoError(t, err)
+	require.Equal(t, int64(math.MinInt64), sum)
 
-	sum, err = AddDuration(math.MaxInt64, 1, false)
+	sum, err = AddU64ToS64(math.MaxInt64, 1, false)
 	require.Error(t, err)
-	require.Equal(t, uint64(0), sum)
+	require.Equal(t, int64(0), sum)
 
-	sum, err = AddDuration(math.MaxInt64, 2, true)
+	sum, err = AddU64ToS64(0, math.MaxInt64+1, false)
 	require.Error(t, err)
-	require.Equal(t, uint64(0), sum)
+	require.Equal(t, int64(0), sum)
+
+	sum, err = AddU64ToS64(math.MinInt64, 1, true)
+	require.Error(t, err)
+	require.Equal(t, int64(0), sum)
+
+	sum, err = AddU64ToS64(0, math.MaxInt64+2, true)
+	require.Error(t, err)
+	require.Equal(t, int64(0), sum)
+
+	sum, err = AddU64ToS64(-1, math.MaxInt64+1, true)
+	require.Error(t, err)
+	require.Equal(t, int64(0), sum)
 }
 
 func TestMulBy10(t *testing.T) {

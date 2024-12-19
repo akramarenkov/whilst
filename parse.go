@@ -46,7 +46,7 @@ func (prs *parser) parse() error {
 	}
 
 	if prs.input == specialZeroParse {
-		prs.whl.negative = false
+		prs.whl.Negative = false
 		return nil
 	}
 
@@ -89,7 +89,7 @@ func (prs *parser) parse() error {
 	}
 
 	if prs.whl.IsZero() {
-		prs.whl.negative = false
+		prs.whl.Negative = false
 	}
 
 	return nil
@@ -106,7 +106,7 @@ func (prs *parser) begin() error {
 
 			foundSign = true
 
-			prs.whl.negative = char == charMinus
+			prs.whl.Negative = char == charMinus
 
 			continue
 		}
@@ -272,12 +272,12 @@ func (prs *parser) addValue(id int) error {
 			return ErrOnlyInteger
 		}
 
-		increased, err := credible.AddU64ToU16(prs.whl.years, prs.integer)
+		increased, err := credible.AddU64ToU16(prs.whl.Years, prs.integer)
 		if err != nil {
 			return err
 		}
 
-		prs.whl.years = increased
+		prs.whl.Years = increased
 
 		return nil
 	case unitMonth:
@@ -285,12 +285,12 @@ func (prs *parser) addValue(id int) error {
 			return ErrOnlyInteger
 		}
 
-		increased, err := credible.AddU64ToU16(prs.whl.months, prs.integer)
+		increased, err := credible.AddU64ToU16(prs.whl.Months, prs.integer)
 		if err != nil {
 			return err
 		}
 
-		prs.whl.months = increased
+		prs.whl.Months = increased
 
 		return nil
 	case unitDay:
@@ -298,12 +298,12 @@ func (prs *parser) addValue(id int) error {
 			return ErrOnlyInteger
 		}
 
-		increased, err := credible.AddU64ToU16(prs.whl.days, prs.integer)
+		increased, err := credible.AddU64ToU16(prs.whl.Days, prs.integer)
 		if err != nil {
 			return err
 		}
 
-		prs.whl.days = increased
+		prs.whl.Days = increased
 
 		return nil
 	case unitHour:
@@ -356,24 +356,24 @@ func (prs *parser) addValue(id int) error {
 		return ErrUnexpectedUnit
 	}
 
-	duration, err := credible.AddDuration(prs.whl.duration, whole, prs.whl.negative)
+	duration, err := credible.AddU64ToS64(int64(prs.whl.Nano), whole, prs.whl.Negative)
 	if err != nil {
 		return err
 	}
 
 	if prs.fraction == 0 {
-		prs.whl.duration = duration
+		prs.whl.Nano = time.Duration(duration)
 		return nil
 	}
 
 	converted := float64(prs.fraction) * (float64(dimension) / float64(prs.scale))
 
-	duration, err = credible.AddDuration(duration, uint64(converted), prs.whl.negative)
+	duration, err = credible.AddU64ToS64(duration, uint64(converted), prs.whl.Negative)
 	if err != nil {
 		return err
 	}
 
-	prs.whl.duration = duration
+	prs.whl.Nano = time.Duration(duration)
 
 	return nil
 }

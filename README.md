@@ -12,7 +12,7 @@ Library that extends time.Duration from standard library with days, months and y
 
 Without approximations
 
-Allows for presence of spaces
+Allows for presence of spaces in a string representation
 
 Compatible with time.Duration in terms of parsing and conversion to string
 

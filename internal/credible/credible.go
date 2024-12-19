@@ -23,7 +23,7 @@ func Add(first int64, second int64) (int64, error) {
 	return sum, nil
 }
 
-// Adds integer of uint64 type to integer of uint16 type and detects whether
+// Adds an integer of uint64 type to an integer of uint16 type and detects whether
 // an overflow has occurred or not.
 func AddU64ToU16(first uint16, second uint64) (uint16, error) {
 	if second > intspec.MaxUint16 {
@@ -39,36 +39,48 @@ func AddU64ToU16(first uint16, second uint64) (uint16, error) {
 	return sum, nil
 }
 
-// Adds two integers of uint64 type, detects whether an overflow has occurred or not and
-// also detects whether the sum exceeds the maximum value for the time.Duration type in
-// the uint64 representation.
-func AddDuration(first uint64, second uint64, negative bool) (uint64, error) {
+// Adds an integer of uint64 type to an integer of int64 type and detects whether
+// an overflow has occurred or not.
+func AddU64ToS64(first int64, second uint64, negative bool) (int64, error) {
 	const (
 		minimum = -intspec.MinInt64
 		maximum = intspec.MaxInt64
 	)
 
-	sum := first + second
+	if negative {
+		if second > minimum {
+			return 0, safe.ErrOverflow
+		}
+
+		var sum int64
+
+		if second == minimum {
+			sum = first + int64(second)
+		} else {
+			sum = first - int64(second)
+		}
+
+		if sum > first {
+			return 0, safe.ErrOverflow
+		}
+
+		return sum, nil
+	}
+
+	if second > maximum {
+		return 0, safe.ErrOverflow
+	}
+
+	sum := first + int64(second)
 
 	if sum < first {
 		return 0, safe.ErrOverflow
 	}
 
-	switch negative {
-	case false:
-		if sum > maximum {
-			return 0, safe.ErrOverflow
-		}
-	case true:
-		if sum > minimum {
-			return 0, safe.ErrOverflow
-		}
-	}
-
 	return sum, nil
 }
 
-// Multiplies a integer of int64 type by 10 and detects whether
+// Multiplies an integer of int64 type by 10 and detects whether
 // an overflow has occurred or not.
 //
 // It is assumed that the integer is always positive.
@@ -82,7 +94,7 @@ func MulBy10(number int64) (int64, error) {
 	return number * consts.DecimalBase, nil
 }
 
-// Multiplies a integer of uint64 type by 10 and detects whether
+// Multiplies an integer of uint64 type by 10 and detects whether
 // an overflow has occurred or not.
 func MulBy10U(number uint64) (uint64, error) {
 	const maximum = intspec.MaxUint64 / consts.DecimalBase
@@ -94,7 +106,7 @@ func MulBy10U(number uint64) (uint64, error) {
 	return number * consts.DecimalBase, nil
 }
 
-// Multiplies a integer of uint64 type by time.Microsecond and detects whether
+// Multiplies an integer of uint64 type by time.Microsecond and detects whether
 // an overflow has occurred or not.
 func MulByMicrosecond(number uint64) (uint64, error) {
 	const maximum = intspec.MaxUint64 / consts.U64Microsecond
@@ -106,7 +118,7 @@ func MulByMicrosecond(number uint64) (uint64, error) {
 	return number * consts.U64Microsecond, nil
 }
 
-// Multiplies a integer of uint64 type by time.Millisecond and detects whether
+// Multiplies an integer of uint64 type by time.Millisecond and detects whether
 // an overflow has occurred or not.
 func MulByMillisecond(number uint64) (uint64, error) {
 	const maximum = intspec.MaxUint64 / consts.U64Millisecond
@@ -118,7 +130,7 @@ func MulByMillisecond(number uint64) (uint64, error) {
 	return number * consts.U64Millisecond, nil
 }
 
-// Multiplies a integer of uint64 type by time.Second and detects whether
+// Multiplies an integer of uint64 type by time.Second and detects whether
 // an overflow has occurred or not.
 func MulBySecond(number uint64) (uint64, error) {
 	const maximum = intspec.MaxUint64 / consts.U64Second
@@ -130,7 +142,7 @@ func MulBySecond(number uint64) (uint64, error) {
 	return number * consts.U64Second, nil
 }
 
-// Multiplies a integer of uint64 type by time.Minute and detects whether
+// Multiplies an integer of uint64 type by time.Minute and detects whether
 // an overflow has occurred or not.
 func MulByMinute(number uint64) (uint64, error) {
 	const maximum = intspec.MaxUint64 / consts.U64Minute
@@ -142,7 +154,7 @@ func MulByMinute(number uint64) (uint64, error) {
 	return number * consts.U64Minute, nil
 }
 
-// Multiplies a integer of uint64 type by time.Hour and detects whether
+// Multiplies an integer of uint64 type by time.Hour and detects whether
 // an overflow has occurred or not.
 func MulByHour(number uint64) (uint64, error) {
 	const maximum = intspec.MaxUint64 / consts.U64Hour

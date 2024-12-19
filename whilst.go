@@ -4,25 +4,39 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/akramarenkov/safe"
 	"github.com/akramarenkov/whilst/internal/consts"
 )
 
 // Time duration with days, months and years.
 type Whilst struct {
-	duration uint64
+	Nano time.Duration
 
-	days   uint16
-	months uint16
-	years  uint16
+	Days   uint16
+	Months uint16
+	Years  uint16
 
-	negative bool
+	Negative bool
+}
+
+func (whl Whilst) normalize() Whilst {
+	if whl.Negative && whl.Nano > 0 {
+		whl.Nano = -whl.Nano
+		return whl
+	}
+
+	if whl.Nano < 0 {
+		whl.Negative = true
+	}
+
+	return whl
 }
 
 // Parses a string representation of the duration.
 //
-// A duration string consists of several decimal numbers supplemented with a unit of
-// measurement. There may be spaces between a numbers supplemented with a unit,
-// but there must not be spaces between a number and a unit. One of a signs - or + can
+// A duration string consists of several decimal numbers supplemented with an unit of
+// measurement. There may be spaces between a numbers supplemented with an unit,
+// but there must not be spaces between a number and an unit. One of a signs - or + can
 // be specified at a beginning of a string.
 //
 // A value of days, months and years can only be an integer and cannot be greater
@@ -58,7 +72,7 @@ func Parse(input string) (Whilst, error) {
 
 // Reports whether the duration is zero.
 func (whl Whilst) IsZero() bool {
-	return whl.years|whl.months|whl.days == 0 && whl.duration == 0
+	return whl.Years|whl.Months|whl.Days == 0 && whl.Nano == 0
 }
 
 // Returns a string representation of the duration.
@@ -70,38 +84,38 @@ func (whl Whilst) String() string {
 	var output []byte
 
 	switch {
-	case whl.years|whl.months|whl.days == 0:
+	case whl.Years|whl.Months|whl.Days == 0:
 		output = make([]byte, 0, len(formatMaximumStd))
 	default:
 		output = make([]byte, 0, len(formatMaximum))
 	}
 
-	if whl.negative {
+	if whl.Negative || whl.Nano < 0 {
 		output = append(output, charMinus)
 	}
 
-	if whl.years != 0 {
-		output = strconv.AppendUint(output, uint64(whl.years), consts.DecimalBase)
+	if whl.Years != 0 {
+		output = strconv.AppendUint(output, uint64(whl.Years), consts.DecimalBase)
 		output = append(output, unitYear...)
 	}
 
-	if whl.months != 0 {
-		output = strconv.AppendUint(output, uint64(whl.months), consts.DecimalBase)
+	if whl.Months != 0 {
+		output = strconv.AppendUint(output, uint64(whl.Months), consts.DecimalBase)
 		output = append(output, unitMonth...)
 	}
 
-	if whl.days != 0 {
-		output = strconv.AppendUint(output, uint64(whl.days), consts.DecimalBase)
+	if whl.Days != 0 {
+		output = strconv.AppendUint(output, uint64(whl.Days), consts.DecimalBase)
 		output = append(output, unitDay...)
 	}
 
-	output = whl.appendHMS(output)
+	output = whl.appendNano(output)
 
 	return string(output)
 }
 
-func (whl Whilst) appendHMS(output []byte) []byte {
-	duration := whl.duration
+func (whl Whilst) appendNano(output []byte) []byte {
+	duration := safe.Abs(whl.Nano)
 	upper := false
 
 	hours := duration / consts.U64Hour
@@ -177,18 +191,13 @@ func (whl Whilst) Duration(from time.Time) time.Duration {
 
 // Returns a time shifted by the duration.
 func (whl Whilst) When(from time.Time) time.Time {
-	if whl.negative {
-		// Value uint64(-MinInt64) when converted to int64 will take the value MinInt64,
-		// the value int64(MinInt64) when inverted will also take the value MinInt64
-		//
-		//nolint:gosec // Value of duration is controlled when parsing and setting
-		duration := -time.Duration(whl.duration)
+	if whl.Negative || whl.Nano < 0 {
+		if whl.Nano > 0 {
+			whl.Nano = -whl.Nano
+		}
 
-		return from.AddDate(-int(whl.years), -int(whl.months), -int(whl.days)).Add(duration)
+		return from.AddDate(-int(whl.Years), -int(whl.Months), -int(whl.Days)).Add(whl.Nano)
 	}
 
-	//nolint:gosec // Value of duration is controlled when parsing and setting
-	duration := time.Duration(whl.duration)
-
-	return from.AddDate(int(whl.years), int(whl.months), int(whl.days)).Add(duration)
+	return from.AddDate(int(whl.Years), int(whl.Months), int(whl.Days)).Add(whl.Nano)
 }
