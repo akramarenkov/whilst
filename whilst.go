@@ -4,8 +4,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/akramarenkov/safe"
 	"github.com/akramarenkov/whilst/internal/consts"
+
+	"github.com/akramarenkov/safe"
 )
 
 // Time duration with days, months and years.

@@ -3,14 +3,17 @@ package whilst
 import (
 	"time"
 
-	"github.com/akramarenkov/safe"
 	"github.com/akramarenkov/whilst/internal/ascii"
 	"github.com/akramarenkov/whilst/internal/consts"
 	"github.com/akramarenkov/whilst/internal/credible"
+
+	"github.com/akramarenkov/safe"
 )
 
 // Parsing context.
 type parser struct {
+	whl *Whilst
+
 	input string
 
 	foundNum bool
@@ -21,8 +24,6 @@ type parser struct {
 	integer  uint64
 	fraction int64
 	scale    float64
-
-	whl *Whilst
 }
 
 // Parses the input string.

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/akramarenkov/whilst/internal/consts"
+
 	"github.com/stretchr/testify/require"
 )
 

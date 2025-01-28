@@ -5,9 +5,9 @@ go 1.23
 toolchain go1.23.3
 
 require (
-	github.com/akramarenkov/safe v0.20.0
-	github.com/stretchr/testify v1.9.0
-	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df
+	github.com/akramarenkov/safe v0.20.2
+	github.com/stretchr/testify v1.10.0
+	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
 )
 
 require (

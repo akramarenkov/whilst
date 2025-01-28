@@ -4,9 +4,10 @@
 package credible
 
 import (
+	"github.com/akramarenkov/whilst/internal/consts"
+
 	"github.com/akramarenkov/safe"
 	"github.com/akramarenkov/safe/intspec"
-	"github.com/akramarenkov/whilst/internal/consts"
 )
 
 // Adds two integers of int64 type and detects whether
