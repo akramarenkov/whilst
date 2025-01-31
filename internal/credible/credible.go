@@ -14,7 +14,7 @@ import (
 // an overflow has occurred or not.
 //
 // It is assumed that both integers are always positive.
-func Add(first int64, second int64) (int64, error) {
+func Add(first, second int64) (int64, error) {
 	sum := first + second
 
 	if sum < first {
