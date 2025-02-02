@@ -192,13 +192,13 @@ func (whl Whilst) Duration(from time.Time) time.Duration {
 
 // Returns a time shifted by the duration.
 func (whl Whilst) When(from time.Time) time.Time {
-	if whl.Negative || whl.Nano < 0 {
-		if whl.Nano > 0 {
-			whl.Nano = -whl.Nano
-		}
-
-		return from.AddDate(-int(whl.Years), -int(whl.Months), -int(whl.Days)).Add(whl.Nano)
+	if !whl.Negative && whl.Nano >= 0 {
+		return from.AddDate(int(whl.Years), int(whl.Months), int(whl.Days)).Add(whl.Nano)
 	}
 
-	return from.AddDate(int(whl.Years), int(whl.Months), int(whl.Days)).Add(whl.Nano)
+	if whl.Nano > 0 {
+		return from.AddDate(-int(whl.Years), -int(whl.Months), -int(whl.Days)).Add(-whl.Nano)
+	}
+
+	return from.AddDate(-int(whl.Years), -int(whl.Months), -int(whl.Days)).Add(whl.Nano)
 }
