@@ -1,8 +1,6 @@
 module github.com/akramarenkov/whilst
 
-go 1.23
-
-toolchain go1.23.3
+go 1.24
 
 require (
 	github.com/akramarenkov/safe v0.20.2
