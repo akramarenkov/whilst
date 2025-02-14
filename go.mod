@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/akramarenkov/safe v0.20.2
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
+	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac
 )
 
 require (
