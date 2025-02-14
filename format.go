@@ -26,7 +26,7 @@ func appendFraction(output []byte, fraction uint64) []byte {
 		output = append(output, ascii.DigitToByte(digit))
 
 		if fraction == 0 {
-			break // for coverage
+			break // For coverage
 		}
 	}
 
