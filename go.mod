@@ -3,9 +3,10 @@ module github.com/akramarenkov/whilst
 go 1.24.0
 
 require (
-	github.com/akramarenkov/safe v0.20.2
+	github.com/akramarenkov/intspec v0.0.3
+	github.com/akramarenkov/safe v0.20.3
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/exp v0.0.0-20250215185904-eff6e970281f
+	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa
 )
 
 require (

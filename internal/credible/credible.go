@@ -6,8 +6,8 @@ package credible
 import (
 	"github.com/akramarenkov/whilst/internal/consts"
 
+	"github.com/akramarenkov/intspec"
 	"github.com/akramarenkov/safe"
-	"github.com/akramarenkov/safe/intspec"
 )
 
 // Adds two integers of int64 type and detects whether
