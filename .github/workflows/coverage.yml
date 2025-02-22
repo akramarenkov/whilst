@@ -19,18 +19,19 @@ jobs:
       - run: |
           for dir in . v[0-9]*;
           do
-            cd "${dir}" || continue
+            test "${dir}" == 'v[0-9]*' && continue
+
+            cd "${dir}"
 
             coverfile="../coverfile-${dir}"
 
-            if test "${dir}" == ".";
-            then
+            test "${dir}" == '.'&& {
               coverfile="coverfile-${dir}"
-            fi
+            }
 
             go test -v -coverprofile="${coverfile}" -covermode=atomic -timeout=1h ./...
 
-            test "${dir}" != "." && cd ..
+            test "${dir}" != '.' && cd ..
           done
       - uses: coverallsapp/github-action@v2
         with:

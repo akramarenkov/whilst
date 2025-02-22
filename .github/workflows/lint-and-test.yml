@@ -19,11 +19,13 @@ jobs:
       - run: |
           for dir in . v[0-9]*;
           do
-            cd "${dir}" || continue
+            test "${dir}" == 'v[0-9]*' && continue
+
+            cd "${dir}"
 
             go test -v -race -bench=^BenchmarkRace ./...
 
-            test "${dir}" != "." && cd ..
+            test "${dir}" != '.' && cd ..
           done
   lint:
     runs-on: ubuntu-latest
