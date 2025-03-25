@@ -84,10 +84,9 @@ func (whl Whilst) String() string {
 
 	var output []byte
 
-	switch {
-	case whl.Years|whl.Months|whl.Days == 0:
+	if whl.Years|whl.Months|whl.Days == 0 {
 		output = make([]byte, 0, len(formatMaximumStd))
-	default:
+	} else {
 		output = make([]byte, 0, len(formatMaximum))
 	}
 
