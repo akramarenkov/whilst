@@ -43,7 +43,7 @@ func (whl Whilst) normalize() Whilst {
 // A value of days, months and years can only be an integer and cannot be greater
 // than 65535 for each.
 //
-// Remaining values ​​must not be greater than 9223372036854775807 for positive duration
+// Remaining values must not be greater than 9223372036854775807 for positive duration
 // and 9223372036854775808 for negative duration and may have a fractional part.
 //
 // List of valid units:
